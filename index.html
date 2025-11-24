@@ -76,14 +76,11 @@
             </div>
         </div>
 
-        <!-- LOADING STATE -->
-        <div id="loading-state" class="text-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto"></div>
-            <p class="mt-4 text-gray-500">Memuat database...</p>
-        </div>
+        <!-- LOADING STATE (REMOVED/HIDDEN) -->
+        <!-- Loading div removed to show form immediately -->
 
-        <!-- FORM VIEW -->
-        <div id="form-view" class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden fade-in hidden">
+        <!-- FORM VIEW (VISIBLE BY DEFAULT) -->
+        <div id="form-view" class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden fade-in">
             <div id="form-header" class="p-4 md:p-6 border-b bg-gray-50 flex justify-between items-center">
                 <h2 class="text-md md:text-lg font-semibold text-gray-700 flex items-center gap-2">
                     <i data-lucide="plus" class="w-5 h-5 text-blue-600" id="form-icon"></i> 
@@ -271,15 +268,14 @@
                 data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 entries = data;
                 renderTable(entries);
-                document.getElementById('loading-state').classList.add('hidden');
-                document.getElementById('form-view').classList.remove('hidden'); // Default view
+                
+                // REMOVED: Loading state handling since visual loading is removed
                 
                 // Refresh Icons
                 lucide.createIcons();
             }, (error) => {
                 console.error("Firestore Snapshot Error:", error);
                 alert("Gagal memuat data: " + error.message);
-                document.getElementById('loading-state').innerHTML = "<p class='text-red-500'>Gagal memuat data. Sila muat semula halaman.</p>";
             });
         }
 
