@@ -1,0 +1,561 @@
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Trash2, Save, Download, FileSpreadsheet, Plus, Calculator, Search, Upload, Copy, Check, Edit, Cloud, Share2, Globe, Menu, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  onAuthStateChanged,
+  signInWithCustomToken
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  deleteDoc, 
+  doc, 
+  query, 
+  serverTimestamp,
+  writeBatch,
+  updateDoc
+} from 'firebase/firestore';
+
+// --- Google Apps Script URL ---
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsqk55U-qunBx0watHfzTb9D7hzrp8nflPp8BmwgLejRZGsD-60CqhhHpGes4trPUy/exec";
+
+// --- Firebase Configuration ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// --- Helper Functions ---
+const formatCurrency = (value) => {
+  if (!value) return 'Rp 0';
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+};
+
+// --- Mobile Card Component ---
+const MobileCard = ({ row, onEdit, onDelete, onSync }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-3 active:border-blue-300 transition-all">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h4 className="font-bold text-gray-800 uppercase text-sm">{row.nama}</h4>
+          <p className="text-xs text-gray-500 font-mono">{row.nuptk || '-'}</p>
+        </div>
+        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
+          {formatCurrency(row.diterima)}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+        <div>
+          <span className="block text-gray-400 text-[10px] uppercase">Bank</span>
+          {row.nama_bank}
+        </div>
+        <div>
+          <span className="block text-gray-400 text-[10px] uppercase">Rekening</span>
+          {row.no_rekening}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="bg-gray-50 p-3 rounded-lg mb-3 text-xs space-y-2 border border-gray-100 animate-in slide-in-from-top-2">
+           <div className="flex justify-between"><span>Gaji Juli:</span> <span className="font-mono">{formatCurrency(row.gaji_juli)}</span></div>
+           <div className="flex justify-between"><span>Gaji Agust:</span> <span className="font-mono">{formatCurrency(row.gaji_agustus)}</span></div>
+           <div className="flex justify-between"><span>Gaji Sept:</span> <span className="font-mono">{formatCurrency(row.gaji_september)}</span></div>
+           <div className="flex justify-between font-bold text-blue-700 border-t pt-1 border-gray-200"><span>Jml Kotor:</span> <span>{formatCurrency(row.jumlah_kotor)}</span></div>
+           <div className="flex justify-between text-red-600"><span>Pajak:</span> <span>-{formatCurrency(row.nominal_pajak)}</span></div>
+           <div className="flex justify-between text-red-600"><span>BPJS:</span> <span>-{formatCurrency(row.bpjs)}</span></div>
+           <div className="pt-1 mt-1 border-t border-gray-200">
+             <span className="block text-[10px] text-gray-400">Tempat Tugas</span>
+             {row.tempat_tugas}
+           </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+        <button onClick={() => setExpanded(!expanded)} className="text-blue-600 text-xs flex items-center gap-1 font-medium">
+          {expanded ? <><ChevronUp size={14}/> Tutup</> : <><ChevronDown size={14}/> Rincian</>}
+        </button>
+        <div className="flex gap-3">
+          <button onClick={() => onEdit(row)} className="text-amber-600 bg-amber-50 p-1.5 rounded-full"><Edit size={16} /></button>
+          <button onClick={() => onSync(row)} className="text-green-600 bg-green-50 p-1.5 rounded-full"><Share2 size={16} /></button>
+          <button onClick={() => onDelete(row.id)} className="text-red-600 bg-red-50 p-1.5 rounded-full"><Trash2 size={16} /></button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Component ---
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('form'); 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [syncing, setSyncing] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false); // Mobile menu toggle
+  const fileInputRef = useRef(null);
+
+  // Initial Form State
+  const initialFormState = {
+    no_peserta: '',
+    nuptk: '',
+    no_sk: '',
+    nama: '',
+    tempat_tugas: 'SMK MUHAMMADIYAH BOJONG',
+    nama_bank: 'BPD JATENG', 
+    kantor_cabang: '',
+    no_rekening: '',
+    nama_rekening: '',
+    pangkat_gol: '',
+    masa_kerja: '',
+    gaji_juli: 0,
+    gaji_agustus: 0,
+    gaji_september: 0,
+    nominal_pajak: 0,
+    bpjs: 0,
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  // --- Auth & Data Loading ---
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Auth error:", error);
+      }
+    };
+    initAuth();
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'));
+    
+    const unsubscribeData = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setEntries(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Data fetch error:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribeData();
+  }, [user]);
+
+  // --- Google Sheet Sync Function ---
+  const sendToGoogleSheet = async (data, isBatch = false) => {
+    setSyncing(true);
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors', 
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(data)
+      });
+      if (!isBatch) setTimeout(() => setSyncing(false), 1000);
+      else setSyncing(false);
+    } catch (error) {
+      console.error("Failed to sync:", error);
+      setSyncing(false);
+      alert("Gagal koneksi ke Google Sheet.");
+    }
+  };
+
+  // --- Handlers ---
+  const handleInputChange = (e) => {
+    const { name, value, type } = e.target;
+    if (type === 'number' || ['gaji_juli', 'gaji_agustus', 'gaji_september', 'nominal_pajak', 'bpjs'].includes(name)) {
+        setFormData(prev => ({ ...prev, [name]: parseFloat(value) || 0 }));
+    } else {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const jumlahKotor = useMemo(() => {
+    return (parseFloat(formData.gaji_juli) || 0) + (parseFloat(formData.gaji_agustus) || 0) + (parseFloat(formData.gaji_september) || 0);
+  }, [formData.gaji_juli, formData.gaji_agustus, formData.gaji_september]);
+
+  const diterimaBersih = useMemo(() => {
+    return jumlahKotor - (parseFloat(formData.nominal_pajak) || 0) - (parseFloat(formData.bpjs) || 0);
+  }, [jumlahKotor, formData.nominal_pajak, formData.bpjs]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user) return;
+
+    try {
+      const payload = {
+        ...formData,
+        jumlah_kotor: jumlahKotor,
+        diterima: diterimaBersih,
+        updatedBy: user.uid,
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025', editingId), payload);
+        alert('Data berhasil diperbarui!');
+      } else {
+        payload.createdAt = serverTimestamp();
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'), payload);
+        alert('Data berhasil disimpan!');
+      }
+
+      const spreadSheetPayload = {
+          ...payload,
+          action: editingId ? "UPDATE" : "INSERT",
+          timestamp: new Date().toISOString()
+      };
+      sendToGoogleSheet(spreadSheetPayload);
+      
+      setFormData({ ...initialFormState, tempat_tugas: formData.tempat_tugas, nama_bank: formData.nama_bank });
+      setEditingId(null); 
+    } catch (error) {
+      console.error("Error saving:", error);
+      alert('Gagal menyimpan data.');
+    }
+  };
+
+  const handleEdit = (item) => {
+    setFormData({
+        no_peserta: item.no_peserta || '',
+        nuptk: item.nuptk || '',
+        no_sk: item.no_sk || '',
+        nama: item.nama || '',
+        tempat_tugas: item.tempat_tugas || '',
+        nama_bank: item.nama_bank || '',
+        kantor_cabang: item.kantor_cabang || '',
+        no_rekening: item.no_rekening || '',
+        nama_rekening: item.nama_rekening || '',
+        pangkat_gol: item.pangkat_gol || '',
+        masa_kerja: item.masa_kerja || '',
+        gaji_juli: item.gaji_juli || 0,
+        gaji_agustus: item.gaji_agustus || 0,
+        gaji_september: item.gaji_september || 0,
+        nominal_pajak: item.nominal_pajak || 0,
+        bpjs: item.bpjs || 0,
+    });
+    setEditingId(item.id);
+    setView('form');
+    setShowMobileMenu(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+      setEditingId(null);
+      setFormData({ ...initialFormState, tempat_tugas: formData.tempat_tugas, nama_bank: formData.nama_bank });
+  };
+
+  const handleDelete = async (id) => {
+    if(!confirm("Yakin hapus data?")) return;
+    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025', id)); } 
+    catch (error) { console.error(error); }
+  };
+
+  const handleManualSync = (row) => {
+      if(!confirm(`Kirim data ${row.nama} manual?`)) return;
+      sendToGoogleSheet({ ...row, action: "MANUAL_SYNC", timestamp: new Date().toISOString() });
+  };
+
+  const handleExportCSV = () => {
+    if (entries.length === 0) return;
+    const headers = ["NO. PESERTA", "NUPTK", "NO.SK", "NAMA", "TEMPAT TUGAS", "NAMA BANK", "KANTOR CABANG", "NO. REKENING", "NAMA REKENING", "PANGKAT/GOL", "MASA KERJA", "Juli", "Agustus", "September", "JUMLAH", "NOMINAL PAJAK", "TOTAL BPJS 1%", "DITERIMA"];
+    const csvRows = [
+      headers.join(','),
+      ...entries.map(row => [
+        `'${row.no_peserta||''}`, `'${row.nuptk||''}`, `'${row.no_sk||''}`, `"${row.nama||''}"`, `"${row.tempat_tugas||''}"`, `"${row.nama_bank||''}"`, `"${row.kantor_cabang||''}"`, `'${row.no_rekening||''}`, `"${row.nama_rekening||''}"`, `"${row.pangkat_gol||''}"`, `"${row.masa_kerja||''}"`,
+        row.gaji_juli, row.gaji_agustus, row.gaji_september, row.jumlah_kotor, row.nominal_pajak, row.bpjs, row.diterima
+      ].join(','))
+    ];
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SPJ_TPG_TW4_TAHAP1_2025_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  };
+
+  const handleCopyTable = () => {
+    if (entries.length === 0) return;
+    const headers = ["NO", "NO. PESERTA", "NUPTK", "NO.SK", "NAMA", "TEMPAT TUGAS", "NAMA BANK", "KANTOR CABANG", "NO. REKENING", "NAMA REKENING", "PANGKAT/GOL", "MASA KERJA", "Juli", "Agustus", "September", "JUMLAH", "NOMINAL PAJAK", "TOTAL BPJS 1%", "DITERIMA"];
+    const rows = entries.map((row, idx) => [
+      idx+1, row.no_peserta, row.nuptk, row.no_sk, row.nama, row.tempat_tugas, row.nama_bank, row.kantor_cabang, row.no_rekening, row.nama_rekening, row.pangkat_gol, row.masa_kerja,
+      row.gaji_juli, row.gaji_agustus, row.gaji_september, row.jumlah_kotor, row.nominal_pajak, row.bpjs, row.diterima
+    ].join('\t'));
+    const textToCopy = [headers.join('\t'), ...rows].join('\n');
+    navigator.clipboard.writeText(textToCopy).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+    setShowMobileMenu(false);
+  };
+
+  const handleImportClick = () => fileInputRef.current?.click();
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      const rows = text.split('\n').map(row => row.split(',')); 
+      if (rows.length < 2) return alert("Format invalid.");
+      const dataRows = rows.slice(1).filter(r => r.length > 5 && r[3]); 
+      if (dataRows.length === 0) return alert("No data.");
+      if(!confirm(`Import ${dataRows.length} data?`)) return;
+
+      const batch = writeBatch(db);
+      const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025');
+      dataRows.forEach(row => {
+        const parseNum = (val) => parseFloat(val?.replace(/[^0-9.-]+/g,"")) || 0;
+        const cleanStr = (val) => val?.replace(/['"]/g, '').trim() || '';
+        const newData = {
+          no_peserta: cleanStr(row[0]), nuptk: cleanStr(row[1]), no_sk: cleanStr(row[2]), nama: cleanStr(row[3]), tempat_tugas: cleanStr(row[4]), nama_bank: cleanStr(row[5]), kantor_cabang: cleanStr(row[6]), no_rekening: cleanStr(row[7]), nama_rekening: cleanStr(row[8]), pangkat_gol: cleanStr(row[9]), masa_kerja: cleanStr(row[10]),
+          gaji_juli: parseNum(row[11]), gaji_agustus: parseNum(row[12]), gaji_september: parseNum(row[13]), nominal_pajak: parseNum(row[15]), bpjs: parseNum(row[16]),
+          jumlah_kotor: parseNum(row[11]) + parseNum(row[12]) + parseNum(row[13]),
+          diterima: (parseNum(row[11]) + parseNum(row[12]) + parseNum(row[13])) - parseNum(row[15]) - parseNum(row[16]),
+          createdAt: serverTimestamp(), updatedBy: user?.uid || 'import'
+        };
+        batch.set(doc(collectionRef), newData);
+      });
+      await batch.commit();
+      alert("Import berhasil!");
+      setView('table'); 
+      event.target.value = null;
+    };
+    reader.readAsText(file);
+    setShowMobileMenu(false);
+  };
+
+  const filteredEntries = entries.filter(item => item.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || item.nuptk?.includes(searchTerm));
+  const grandTotals = useMemo(() => filteredEntries.reduce((acc, curr) => ({
+      gaji_juli: acc.gaji_juli + (curr.gaji_juli||0), gaji_agustus: acc.gaji_agustus + (curr.gaji_agustus||0), gaji_september: acc.gaji_september + (curr.gaji_september||0),
+      jumlah_kotor: acc.jumlah_kotor + (curr.jumlah_kotor||0), nominal_pajak: acc.nominal_pajak + (curr.nominal_pajak||0), bpjs: acc.bpjs + (curr.bpjs||0), diterima: acc.diterima + (curr.diterima||0),
+  }), { gaji_juli: 0, gaji_agustus: 0, gaji_september: 0, jumlah_kotor: 0, nominal_pajak: 0, bpjs: 0, diterima: 0 }), [filteredEntries]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-800 font-sans pb-20 md:pb-0">
+      <header className="bg-gradient-to-r from-blue-800 to-indigo-900 text-white p-4 md:p-6 shadow-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+             <div className="flex-1 w-full">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-lg md:text-2xl font-bold uppercase tracking-wide leading-tight">SPJ TPG TW 4 - 2025</h1>
+                        <p className="text-blue-200 text-xs md:text-sm mt-1">Disdikbud Prov. Jateng</p>
+                    </div>
+                    {/* Status Icons for Mobile */}
+                    <div className="flex flex-col items-end md:hidden gap-1">
+                        <div className={`w-2 h-2 rounded-full ${user ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                    </div>
+                </div>
+             </div>
+             {/* Desktop Status Indicators */}
+             <div className="hidden md:flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-xs text-blue-100 border border-white/20"><Cloud size={14} /><span>Cloud Aktif</span></div>
+                <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full text-xs text-green-200 border border-green-400/30"><Globe size={14} /><span>Spreadsheet Aktif</span></div>
+             </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto p-3 md:p-6">
+        
+        {/* Controls Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-3 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-200">
+          
+          {/* Main Toggles */}
+          <div className="flex w-full md:w-auto space-x-2">
+            <button onClick={() => setView('form')} className={`flex-1 md:flex-none justify-center px-4 py-2 rounded-md flex items-center gap-2 transition-colors text-sm font-medium ${view === 'form' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 bg-gray-50'}`}>{editingId ? <Edit size={16} /> : <Plus size={16} />} {editingId ? 'Edit' : 'Input'}</button>
+            <button onClick={() => setView('table')} className={`flex-1 md:flex-none justify-center px-4 py-2 rounded-md flex items-center gap-2 transition-colors text-sm font-medium ${view === 'table' ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 bg-gray-50'}`}><FileSpreadsheet size={16} /> Data</button>
+          </div>
+
+          {/* Desktop Tools */}
+          <div className="hidden md:flex flex-wrap gap-2 justify-end">
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
+            <button onClick={handleImportClick} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md border border-gray-300 flex items-center gap-2 text-sm"><Upload size={16} /> Import</button>
+            {view === 'table' && (
+              <>
+                <button onClick={handleCopyTable} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-md border border-indigo-200 flex items-center gap-2 text-sm">{copied ? <Check size={16} /> : <Copy size={16} />} Salin</button>
+                <button onClick={handleExportCSV} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 text-sm"><Download size={16} /> Excel</button>
+              </>
+            )}
+          </div>
+
+           {/* Mobile Tools Dropdown */}
+           <div className="md:hidden w-full">
+              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded flex justify-between items-center text-sm">
+                 <span>Menu Lainnya</span>
+                 {showMobileMenu ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
+              </button>
+              {showMobileMenu && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 animate-in slide-in-from-top-2">
+                     <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".csv" className="hidden" />
+                     <button onClick={handleImportClick} className="bg-white border p-2 rounded text-xs flex items-center justify-center gap-1"><Upload size={14}/> Import CSV</button>
+                     {view === 'table' && (
+                         <>
+                            <button onClick={handleCopyTable} className="bg-white border p-2 rounded text-xs flex items-center justify-center gap-1"><Copy size={14}/> Salin Tabel</button>
+                            <button onClick={handleExportCSV} className="bg-green-50 border border-green-200 text-green-700 p-2 rounded text-xs flex items-center justify-center gap-1"><Download size={14}/> Download Excel</button>
+                         </>
+                     )}
+                  </div>
+              )}
+           </div>
+        </div>
+
+        {loading && <div className="text-center py-12"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800 mx-auto"></div><p className="mt-4 text-gray-500">Memuat database...</p></div>}
+
+        {/* --- FORMULIR INPUTAN --- */}
+        {!loading && view === 'form' && (
+          <div className={`bg-white rounded-lg shadow-lg border ${editingId ? 'border-amber-400 ring-2 ring-amber-100' : 'border-gray-200'} overflow-hidden`}>
+            <div className={`p-4 md:p-6 border-b ${editingId ? 'bg-amber-50' : 'bg-gray-50'} flex justify-between items-center`}>
+              <h2 className="text-md md:text-lg font-semibold text-gray-700 flex items-center gap-2">{editingId ? <Edit className="text-amber-600" size={20} /> : <Plus className="text-blue-600" size={20} />} {editingId ? 'Edit Data' : 'Formulir Baru'}</h2>
+              {editingId && (<button onClick={handleCancelEdit} className="text-xs md:text-sm text-red-600 hover:underline border border-red-200 px-2 py-1 rounded bg-white">Batal</button>)}
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+              {/* Bagian 1: Identitas */}
+              <div className="md:col-span-12"><h3 className="text-xs font-bold uppercase text-gray-500 tracking-widest border-b pb-2 mb-2 mt-2">1. Identitas Pegawai</h3></div>
+              <div className="md:col-span-4"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NAMA LENGKAP</label><input required type="text" name="nama" value={formData.nama} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 uppercase text-sm" placeholder="Nama sesuai SK" /></div>
+              <div className="md:col-span-4"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NUPTK</label><input type="number" name="nuptk" value={formData.nuptk} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" /></div>
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                  <div className="md:col-span-4"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NO. PESERTA</label><input type="text" name="no_peserta" value={formData.no_peserta} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" /></div>
+                  <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NO. SK</label><input type="text" name="no_sk" value={formData.no_sk} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                  <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">PANGKAT/GOL</label><input type="text" name="pangkat_gol" value={formData.pangkat_gol} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" /></div>
+                  <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">MASA KERJA</label><input type="text" name="masa_kerja" value={formData.masa_kerja} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 text-sm" /></div>
+              </div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">TEMPAT TUGAS</label><input type="text" name="tempat_tugas" value={formData.tempat_tugas} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 bg-gray-50 text-sm" /></div>
+
+              {/* Bagian 2: Bank */}
+              <div className="md:col-span-12 mt-4"><h3 className="text-xs font-bold uppercase text-gray-500 tracking-widest border-b pb-2 mb-2">2. Data Rekening</h3></div>
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                  <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NAMA BANK</label><input type="text" name="nama_bank" value={formData.nama_bank} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border rounded text-sm" /></div>
+                  <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">CABANG</label><input type="text" name="kantor_cabang" value={formData.kantor_cabang} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border rounded text-sm" /></div>
+              </div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NO. REKENING</label><input type="number" name="no_rekening" value={formData.no_rekening} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border rounded text-sm font-mono" /></div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">NAMA REKENING</label><input type="text" name="nama_rekening" value={formData.nama_rekening} onChange={handleInputChange} className="w-full p-2.5 md:p-2 border rounded text-sm" /></div>
+
+              {/* Bagian 3: Keuangan */}
+              <div className="md:col-span-12 mt-4"><h3 className="text-sm font-bold uppercase text-gray-800 tracking-wider mb-4 border-b pb-2 flex items-center gap-2 bg-blue-50 p-2 rounded"><Calculator size={18} /> Keuangan</h3></div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-bold text-gray-600 mb-1">Gaji Juli</label><input type="number" name="gaji_juli" value={formData.gaji_juli} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-right font-mono text-sm" /></div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-bold text-gray-600 mb-1">Gaji Agustus</label><input type="number" name="gaji_agustus" value={formData.gaji_agustus} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-right font-mono text-sm" /></div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-bold text-gray-600 mb-1">Gaji September</label><input type="number" name="gaji_september" value={formData.gaji_september} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 text-right font-mono text-sm" /></div>
+              <div className="md:col-span-3"><label className="block text-xs md:text-sm font-extrabold text-blue-800 mb-1">TOTAL KOTOR</label><div className="w-full p-3 bg-blue-100 border border-blue-200 rounded text-right font-mono font-bold text-blue-900 text-sm">{formatCurrency(jumlahKotor)}</div></div>
+              
+              <div className="grid grid-cols-2 gap-3 md:contents">
+                  <div className="md:col-span-4"><label className="block text-xs md:text-sm font-bold text-red-600 mb-1">PAJAK</label><input type="number" name="nominal_pajak" value={formData.nominal_pajak} onChange={handleInputChange} className="w-full p-3 border border-red-200 rounded focus:ring-2 focus:ring-red-500 text-right font-mono text-red-700 bg-red-50 text-sm" /></div>
+                  <div className="md:col-span-4"><label className="block text-xs md:text-sm font-bold text-red-600 mb-1">BPJS 1%</label><input type="number" name="bpjs" value={formData.bpjs} onChange={handleInputChange} className="w-full p-3 border border-red-200 rounded focus:ring-2 focus:ring-red-500 text-right font-mono text-red-700 bg-red-50 text-sm" /></div>
+              </div>
+              <div className="md:col-span-4 md:col-start-9"><label className="block text-xs md:text-sm font-extrabold text-green-800 mb-1">DITERIMA BERSIH</label><div className="w-full p-3 bg-green-100 border border-green-300 rounded text-right font-mono font-bold text-lg text-green-900">{formatCurrency(diterimaBersih)}</div></div>
+
+              <div className="md:col-span-12 mt-6 flex justify-end gap-3 items-center sticky bottom-0 bg-white/95 backdrop-blur p-4 border-t border-gray-100 shadow-lg md:shadow-none md:static md:p-0 md:border-0 md:bg-transparent">
+                {syncing && <span className="text-xs md:text-sm text-blue-600 animate-pulse flex items-center gap-1"><Cloud size={14}/> Syncing...</span>}
+                <button type="submit" disabled={syncing} className={`w-full md:w-auto ${editingId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-700 hover:bg-blue-800'} text-white px-6 md:px-10 py-3 rounded-lg shadow-lg font-bold text-sm md:text-lg flex justify-center items-center gap-2 transition-all disabled:opacity-50`}>
+                    <Save size={20} /> {editingId ? 'UPDATE' : 'SIMPAN'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* --- TABEL DATA / CARD VIEW (MOBILE) --- */}
+        {!loading && view === 'table' && (
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 flex flex-col md:h-[80vh] h-auto">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 sticky top-0 z-10">
+                <h3 className="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">Database</h3>
+                <div className="relative w-40 md:w-64"><Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} /><input type="text" placeholder="Cari..." className="w-full pl-8 pr-3 py-1.5 md:py-2 border rounded-full text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+            </div>
+            
+            {/* MOBILE CARD VIEW */}
+            <div className="block md:hidden p-3 pb-24 min-h-[50vh]">
+               {filteredEntries.map(row => (
+                  <MobileCard 
+                    key={row.id} 
+                    row={row} 
+                    onEdit={handleEdit} 
+                    onDelete={handleDelete} 
+                    onSync={handleManualSync} 
+                  />
+               ))}
+               {filteredEntries.length === 0 && <div className="text-center text-gray-400 py-10 text-sm">Tidak ada data ditemukan.</div>}
+            </div>
+
+            {/* DESKTOP TABLE VIEW */}
+            <div className="hidden md:block flex-1 overflow-auto">
+              <table className="w-full text-sm text-left whitespace-nowrap">
+                <thead className="bg-gray-100 text-gray-600 sticky top-0 z-10 font-bold uppercase text-xs">
+                  <tr>
+                    <th className="p-3 border-b text-center w-24">Aksi</th>
+                    <th className="p-3 border-b">No</th>
+                    <th className="p-3 border-b">NO. PESERTA</th>
+                    <th className="p-3 border-b">NUPTK</th>
+                    <th className="p-3 border-b">NO.SK</th>
+                    <th className="p-3 border-b">NAMA</th>
+                    <th className="p-3 border-b">TEMPAT TUGAS</th>
+                    <th className="p-3 border-b text-right">Juli</th>
+                    <th className="p-3 border-b text-right">Agustus</th>
+                    <th className="p-3 border-b text-right">September</th>
+                    <th className="p-3 border-b text-right bg-blue-50 font-bold text-blue-800">JUMLAH</th>
+                    <th className="p-3 border-b text-right text-red-600">NOMINAL PAJAK</th>
+                    <th className="p-3 border-b text-right text-red-600">TOTAL BPJS 1%</th>
+                    <th className="p-3 border-b text-right bg-green-50 font-bold text-green-800">DITERIMA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredEntries.map((row, index) => (
+                    <tr key={row.id} className="hover:bg-gray-50 transition-colors group">
+                      <td className="p-3 text-center"><div className="flex justify-center gap-1">
+                            <button onClick={() => handleEdit(row)} className="text-amber-500 hover:text-amber-700 p-1 rounded hover:bg-amber-50" title="Edit Data"><Edit size={16} /></button>
+                            <button onClick={() => handleManualSync(row)} className="text-green-500 hover:text-green-700 p-1 rounded hover:bg-green-50" title="Kirim ke Google Sheet"><Share2 size={16} /></button>
+                            <button onClick={() => handleDelete(row.id)} className="text-gray-300 group-hover:text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50" title="Hapus Data"><Trash2 size={16} /></button>
+                        </div></td>
+                      <td className="p-3">{index + 1}</td><td className="p-3">{row.no_peserta}</td><td className="p-3">{row.nuptk}</td><td className="p-3">{row.no_sk}</td><td className="p-3 font-medium">{row.nama}</td><td className="p-3">{row.tempat_tugas}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(row.gaji_juli)}</td><td className="p-3 text-right font-mono">{formatCurrency(row.gaji_agustus)}</td><td className="p-3 text-right font-mono">{formatCurrency(row.gaji_september)}</td>
+                      <td className="p-3 text-right font-bold bg-blue-50 font-mono text-blue-700">{formatCurrency(row.jumlah_kotor)}</td><td className="p-3 text-right text-red-600 font-mono">{formatCurrency(row.nominal_pajak)}</td><td className="p-3 text-right text-red-600 font-mono">{formatCurrency(row.bpjs)}</td>
+                      <td className="p-3 text-right font-bold text-green-700 bg-green-50 font-mono">{formatCurrency(row.diterima)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                 {filteredEntries.length > 0 && <tfoot className="bg-gray-100 font-bold sticky bottom-0 border-t-2 border-gray-300 shadow-inner text-xs"><tr><td colSpan="7" className="p-3 text-right uppercase text-gray-600">Grand Total ({filteredEntries.length} Pegawai) :</td><td className="p-3 text-right font-mono">{formatCurrency(grandTotals.gaji_juli)}</td><td className="p-3 text-right font-mono">{formatCurrency(grandTotals.gaji_agustus)}</td><td className="p-3 text-right font-mono">{formatCurrency(grandTotals.gaji_september)}</td><td className="p-3 text-right font-mono bg-blue-100 text-blue-800">{formatCurrency(grandTotals.jumlah_kotor)}</td><td className="p-3 text-right font-mono text-red-700">{formatCurrency(grandTotals.nominal_pajak)}</td><td className="p-3 text-right font-mono text-red-700">{formatCurrency(grandTotals.bpjs)}</td><td className="p-3 text-right font-mono bg-green-100 text-green-800 text-sm">{formatCurrency(grandTotals.diterima)}</td></tr></tfoot>}
+              </table>
+            </div>
+
+            {/* FIXED FOOTER TOTAL FOR MOBILE */}
+            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t shadow-[0_-5px_15px_rgba(0,0,0,0.1)] p-3 z-50">
+               <div className="flex justify-between items-center text-sm">
+                 <span className="text-gray-500 font-medium">Total ({filteredEntries.length} Data)</span>
+                 <span className="font-bold text-green-700 text-lg">{formatCurrency(grandTotals.diterima)}</span>
+               </div>
+            </div>
+            
+            <div className="hidden md:flex p-2 border-t bg-gray-50 text-xs text-gray-500 justify-between"><span>Data tersimpan otomatis di database cloud.</span><span>Menampilkan {filteredEntries.length} data</span></div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
