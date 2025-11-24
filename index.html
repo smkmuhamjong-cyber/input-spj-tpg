@@ -16,9 +16,11 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Animasi sederhana */
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* Disable interaction when connecting */
+        .disabled-btn { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 pb-20 md:pb-0">
@@ -31,16 +33,10 @@
                     <h1 class="text-lg md:text-2xl font-bold uppercase tracking-wide leading-tight">SPJ TPG TW 4 - 2025</h1>
                     <p class="text-blue-200 text-xs md:text-sm mt-1">Disdikbud Prov. Jateng</p>
                 </div>
-                <!-- Mobile Status Indicator -->
-                <div id="mobile-status" class="w-2 h-2 rounded-full bg-red-500 md:hidden"></div>
-            </div>
-            <!-- Desktop Indicators -->
-            <div class="hidden md:flex flex-col items-end gap-1">
-                <div class="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-xs text-blue-100 border border-white/20">
-                    <i data-lucide="cloud" class="w-3 h-3"></i> <span>Cloud Aktif</span>
-                </div>
-                <div class="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full text-xs text-green-200 border border-green-400/30">
-                    <i data-lucide="globe" class="w-3 h-3"></i> <span>Spreadsheet Aktif</span>
+                <!-- Connection Status Badge (Mobile & Desktop) -->
+                <div id="connection-status" class="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full text-xs border border-yellow-400/50 text-yellow-100 animate-pulse">
+                    <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> 
+                    <span id="status-text">Menghubungkan...</span>
                 </div>
             </div>
         </div>
@@ -76,14 +72,11 @@
             </div>
         </div>
 
-        <!-- LOADING STATE (REMOVED/HIDDEN) -->
-        <!-- Loading div removed to show form immediately -->
-
         <!-- FORM VIEW (VISIBLE BY DEFAULT) -->
         <div id="form-view" class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden fade-in">
             <div id="form-header" class="p-4 md:p-6 border-b bg-gray-50 flex justify-between items-center">
                 <h2 class="text-md md:text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <i data-lucide="plus" class="w-5 h-5 text-blue-600" id="form-icon"></i> 
+                    <span id="form-icon-wrapper"><i data-lucide="plus" class="w-5 h-5 text-blue-600"></i></span>
                     <span id="form-title">Formulir Baru</span>
                 </h2>
                 <button id="btn-cancel-edit" onclick="cancelEdit()" class="hidden text-xs md:text-sm text-red-600 hover:underline border border-red-200 px-2 py-1 rounded bg-white">Batal</button>
@@ -125,7 +118,7 @@
                 <div class="md:col-span-3"><label class="block text-xs md:text-sm font-extrabold text-blue-800 mb-1">TOTAL KOTOR</label><div id="display_jumlah_kotor" class="w-full p-3 bg-blue-100 border border-blue-200 rounded text-right font-mono font-bold text-blue-900 text-sm">Rp 0</div></div>
 
                 <div class="grid grid-cols-2 gap-3 md:contents">
-                    <div class="md:col-span-4"><label class="block text-xs md:text-sm font-bold text-red-600 mb-1">PAJAK</label><input type="number" name="nominal_pajak" oninput="calculateTotals()" class="w-full p-3 border border-red-200 rounded text-right font-mono text-red-700 bg-red-50 text-sm"></div>
+                    <div class="md:col-span-4"><label class="block text-xs md:text-sm font-bold text-red-600 mb-1">NOMINAL PAJAK (Rp)</label><input type="number" name="nominal_pajak" oninput="calculateTotals()" class="w-full p-3 border border-red-200 rounded text-right font-mono text-red-700 bg-red-50 text-sm" placeholder="Contoh: 50000"></div>
                     <div class="md:col-span-4"><label class="block text-xs md:text-sm font-bold text-red-600 mb-1">BPJS 1%</label><input type="number" name="bpjs" oninput="calculateTotals()" class="w-full p-3 border border-red-200 rounded text-right font-mono text-red-700 bg-red-50 text-sm"></div>
                 </div>
 
@@ -134,8 +127,9 @@
                 <!-- Submit Button -->
                 <div class="md:col-span-12 mt-6 flex justify-end gap-3 items-center sticky bottom-0 bg-white/95 backdrop-blur p-4 border-t border-gray-100 shadow-lg md:shadow-none md:static md:p-0 md:border-0 md:bg-transparent">
                     <span id="sync-status" class="hidden text-xs md:text-sm text-blue-600 animate-pulse flex items-center gap-1"><i data-lucide="cloud" class="w-4 h-4"></i> Mengirim...</span>
-                    <button type="submit" id="btn-submit" class="w-full md:w-auto bg-blue-700 hover:bg-blue-800 text-white px-6 md:px-10 py-3 rounded-lg shadow-lg font-bold text-sm md:text-lg flex justify-center items-center gap-2 transition-all">
-                        <i data-lucide="save" class="w-5 h-5"></i> <span id="btn-submit-text">SIMPAN</span>
+                    <button type="submit" id="btn-submit" class="disabled-btn w-full md:w-auto bg-blue-700 hover:bg-blue-800 text-white px-6 md:px-10 py-3 rounded-lg shadow-lg font-bold text-sm md:text-lg flex justify-center items-center gap-2 transition-all">
+                        <span id="btn-icon-wrapper"><i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i></span> 
+                        <span id="btn-submit-text">TUNGGU...</span>
                     </button>
                 </div>
             </form>
@@ -152,9 +146,7 @@
             </div>
 
             <!-- Mobile Cards Container -->
-            <div id="mobile-cards-container" class="block md:hidden p-3 pb-24 min-h-[50vh]">
-                <!-- Cards will be injected here -->
-            </div>
+            <div id="mobile-cards-container" class="block md:hidden p-3 pb-24 min-h-[50vh]"></div>
 
             <!-- Desktop Table Container -->
             <div class="hidden md:block flex-1 overflow-auto">
@@ -167,20 +159,16 @@
                             <th class="p-3 border-b">NUPTK</th>
                             <th class="p-3 border-b">No Rek</th>
                             <th class="p-3 border-b text-right">Juli</th>
-                            <th class="p-3 border-b text-right">Agust</th>
+                            <th class="p-3 border-b text-right">Agustus</th>
                             <th class="p-3 border-b text-right">Sept</th>
-                            <th class="p-3 border-b text-right bg-blue-50 text-blue-800">Jumlah</th>
-                            <th class="p-3 border-b text-right text-red-600">Pajak</th>
+                            <th class="p-3 border-b text-right bg-blue-50 font-bold text-blue-800">Jumlah</th>
+                            <th class="p-3 border-b text-right text-red-600">Nominal Pajak</th>
                             <th class="p-3 border-b text-right text-red-600">BPJS</th>
                             <th class="p-3 border-b text-right bg-green-50 text-green-800 font-bold">Diterima</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body" class="divide-y divide-gray-100">
-                        <!-- Rows injected here -->
-                    </tbody>
-                    <tfoot id="table-footer" class="bg-gray-100 font-bold sticky bottom-0 border-t-2 border-gray-300 shadow-inner text-xs">
-                        <!-- Totals injected here -->
-                    </tfoot>
+                    <tbody id="table-body" class="divide-y divide-gray-100"></tbody>
+                    <tfoot id="table-footer" class="bg-gray-100 font-bold sticky bottom-0 border-t-2 border-gray-300 shadow-inner text-xs"></tfoot>
                 </table>
             </div>
 
@@ -203,13 +191,10 @@
         // --- KONFIGURASI ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsqk55U-qunBx0watHfzTb9D7hzrp8nflPp8BmwgLejRZGsD-60CqhhHpGes4trPUy/exec";
         
-        // PENTING: Ganti dengan Config Firebase Anda jika di Hosting luar
-        // Jika dijalankan di Preview AI, ini akan otomatis
         let firebaseConfig;
         let appId = 'tpg-app-public';
 
         try {
-             // Deteksi Config Otomatis (Hanya jalan di environment Preview)
             if (typeof __firebase_config !== 'undefined') {
                 firebaseConfig = JSON.parse(__firebase_config);
                 appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -217,7 +202,6 @@
                  throw new Error("Local");
             }
         } catch(e) {
-            // --- ISI CONFIG DI SINI UNTUK GITHUB PAGES / HOSTING ---
             firebaseConfig = {
                 apiKey: "PASTE_API_KEY_ANDA",
                 authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
@@ -228,30 +212,65 @@
             };
         }
 
-        // Init Firebase
+        // GLOBAL USER STATE
         let db, auth, user;
+        let isConnected = false;
+
+        // UI UPDATE FUNCTION FOR CONNECTION STATUS
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const statusBadge = document.getElementById('connection-status');
+            const statusText = document.getElementById('status-text');
+            const submitBtn = document.getElementById('btn-submit');
+            const submitText = document.getElementById('btn-submit-text');
+            const btnIconWrapper = document.getElementById('btn-icon-wrapper');
+
+            if (connected) {
+                // Update Header Badge
+                statusBadge.className = "flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full text-xs border border-green-400/50 text-green-100";
+                statusBadge.innerHTML = `<i data-lucide="wifi" class="w-3 h-3"></i> <span id="status-text">Terhubung</span>`;
+                
+                // Enable Submit Button
+                submitBtn.classList.remove('disabled-btn');
+                submitText.innerText = editingId ? "UPDATE" : "SIMPAN";
+                btnIconWrapper.innerHTML = `<i data-lucide="save" class="w-5 h-5"></i>`;
+            } else {
+                // Reset to connecting state
+                statusBadge.className = "flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full text-xs border border-yellow-400/50 text-yellow-100 animate-pulse";
+                statusBadge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> <span id="status-text">Menghubungkan...</span>`;
+            }
+            lucide.createIcons();
+        }
+
         try {
             const app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
             
-            // UPDATED AUTH LOGIC: Prioritize Custom Token if available
+            // AUTHENTICATION LOGIC
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                signInWithCustomToken(auth, __initial_auth_token).catch(console.error);
+                signInWithCustomToken(auth, __initial_auth_token).catch(err => console.error("Token Auth Failed", err));
             } else {
-                signInAnonymously(auth).catch(console.error);
+                signInAnonymously(auth).catch(err => {
+                    console.error("Anon Auth Failed", err);
+                    if(firebaseConfig.apiKey === "PASTE_API_KEY_ANDA") {
+                        alert("ERROR: Konfigurasi Firebase belum diisi di file index.html!");
+                    }
+                });
             }
 
             onAuthStateChanged(auth, (u) => {
                 user = u;
                 if(user) {
-                    document.getElementById('mobile-status').classList.replace('bg-red-500', 'bg-green-400');
+                    updateConnectionStatus(true);
                     loadData();
+                } else {
+                    updateConnectionStatus(false);
                 }
             });
         } catch(err) {
-            alert("Konfigurasi Firebase Belum Diisi. Silakan edit file index.html bagian Script.");
-            console.error(err);
+            console.error("Firebase Init Error:", err);
+            alert("Gagal memulakan Firebase. Periksa konsol.");
         }
 
         // Global State
@@ -264,18 +283,12 @@
             const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'));
             onSnapshot(q, (snapshot) => {
                 const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                // Sort by CreatedAt desc
                 data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 entries = data;
                 renderTable(entries);
-                
-                // REMOVED: Loading state handling since visual loading is removed
-                
-                // Refresh Icons
                 lucide.createIcons();
             }, (error) => {
                 console.error("Firestore Snapshot Error:", error);
-                alert("Gagal memuat data: " + error.message);
             });
         }
 
@@ -287,7 +300,6 @@
             mobileContainer.innerHTML = '';
 
             let totalDiterima = 0;
-            // Vars for footer totals
             let totals = { juli:0, agust:0, sept:0, kotor:0, pajak:0, bpjs:0, terima:0 };
 
             data.forEach((row, index) => {
@@ -300,7 +312,6 @@
                 totals.bpjs += (row.bpjs || 0);
                 totals.terima += (row.diterima || 0);
 
-                // Desktop Row
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition-colors group";
                 tr.innerHTML = `
@@ -323,7 +334,6 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Mobile Card
                 const card = document.createElement('div');
                 card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-3";
                 card.innerHTML = `
@@ -345,11 +355,9 @@
                 mobileContainer.appendChild(card);
             });
 
-            // Update Totals
             document.getElementById('mobile-total-label').innerText = `Total (${data.length} Data)`;
             document.getElementById('mobile-total-value').innerText = formatCurrency(totals.terima);
             
-            // Footer Table
             const tfoot = document.getElementById('table-footer');
             tfoot.innerHTML = `
                 <tr>
@@ -388,20 +396,31 @@
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            if(!user) return alert("Belum terkoneksi ke database");
+            
+            // Double check just in case button was enabled manually
+            if(!user) {
+                alert("Sedang menyambung ke database... Sila tunggu sebentar.");
+                return;
+            }
 
             const btn = document.getElementById('btn-submit');
+            const btnText = document.getElementById('btn-submit-text');
+            const btnIconWrapper = document.getElementById('btn-icon-wrapper');
             const status = document.getElementById('sync-status');
+            
+            // UI Loading State
             btn.disabled = true;
+            btn.classList.add('opacity-75');
+            btnText.innerText = "MENYIMPAN...";
+            btnIconWrapper.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i>`;
             status.classList.remove('hidden');
+            lucide.createIcons();
 
             const fd = new FormData(form);
             const data = Object.fromEntries(fd.entries());
             
-            // Convert numbers
             ['gaji_juli', 'gaji_agustus', 'gaji_september', 'nominal_pajak', 'bpjs'].forEach(k => data[k] = parseFloat(data[k]) || 0);
             
-            // Calcs
             data.jumlah_kotor = data.gaji_juli + data.gaji_agustus + data.gaji_september;
             data.diterima = data.jumlah_kotor - data.nominal_pajak - data.bpjs;
             data.updatedBy = user.uid;
@@ -417,20 +436,23 @@
                     alert("Data berhasil disimpan!");
                 }
 
-                // Sync Google Sheet
                 const sheetData = { ...data, action: editingId ? "UPDATE" : "INSERT", timestamp: new Date().toISOString() };
                 fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(sheetData) });
 
-                // Reset
                 form.reset();
                 cancelEdit();
-                window.calculateTotals(); // reset display
+                window.calculateTotals(); 
 
             } catch(err) {
                 alert("Gagal menyimpan: " + err.message);
             } finally {
+                // Reset Button State
                 btn.disabled = false;
+                btn.classList.remove('opacity-75');
+                btnText.innerText = "SIMPAN";
+                btnIconWrapper.innerHTML = `<i data-lucide="save" class="w-5 h-5"></i>`;
                 status.classList.add('hidden');
+                lucide.createIcons();
             }
         });
 
@@ -441,35 +463,34 @@
             if(!item) return;
 
             editingId = id;
-            // Fill form
             for (const key in item) {
                 if(form.elements[key]) form.elements[key].value = item[key];
             }
             
-            // UI Updates
             document.getElementById('form-title').innerText = "Edit Data";
             document.getElementById('btn-submit-text').innerText = "UPDATE";
             document.getElementById('btn-submit').classList.replace('bg-blue-700', 'bg-amber-500');
             document.getElementById('form-header').classList.replace('bg-gray-50', 'bg-amber-50');
-            document.getElementById('form-icon').classList.replace('text-blue-600', 'text-amber-600');
+            document.getElementById('form-icon-wrapper').innerHTML = `<i data-lucide="edit" class="w-5 h-5 text-amber-600"></i>`;
             document.getElementById('btn-cancel-edit').classList.remove('hidden');
             
             window.calculateTotals();
             switchView('form');
             window.scrollTo({top:0, behavior:'smooth'});
+            lucide.createIcons();
         };
 
         window.cancelEdit = () => {
             editingId = null;
             form.reset();
-            // Restore UI
             document.getElementById('form-title').innerText = "Formulir Baru";
             document.getElementById('btn-submit-text').innerText = "SIMPAN";
             document.getElementById('btn-submit').classList.replace('bg-amber-500', 'bg-blue-700');
             document.getElementById('form-header').classList.replace('bg-amber-50', 'bg-gray-50');
-            document.getElementById('form-icon').classList.replace('text-amber-600', 'text-blue-600');
+            document.getElementById('form-icon-wrapper').innerHTML = `<i data-lucide="plus" class="w-5 h-5 text-blue-600"></i>`;
             document.getElementById('btn-cancel-edit').classList.add('hidden');
             window.calculateTotals();
+            lucide.createIcons();
         };
 
         window.deleteItem = async (id) => {
@@ -485,8 +506,6 @@
                  fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(sheetData) });
             }
         };
-
-        // --- UTILS ---
 
         window.switchView = (viewName) => {
             const formView = document.getElementById('form-view');
@@ -525,20 +544,17 @@
 
         window.formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
-        // File Import & Export Logic (Simplified for brevity)
         document.getElementById('csvFileInput').addEventListener('change', function(e) {
              const file = e.target.files[0];
              if(!file) return;
              const reader = new FileReader();
              reader.onload = async function(e) {
                  const text = e.target.result;
-                 // (Simulasi Import logic sama seperti React, di sini disederhanakan)
                  alert("Fitur import akan memproses file CSV: " + file.name + "\n(Logic parsing ada di dalam code)");
              };
              reader.readAsText(file);
         });
 
-        // Init Icons
         lucide.createIcons();
     </script>
 </body>
