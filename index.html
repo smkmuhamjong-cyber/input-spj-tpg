@@ -23,12 +23,38 @@ import {
 // --- Google Apps Script URL ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsqk55U-qunBx0watHfzTb9D7hzrp8nflPp8BmwgLejRZGsD-60CqhhHpGes4trPUy/exec";
 
-// --- Firebase Configuration ---
-const firebaseConfig = JSON.parse(__firebase_config);
+// --- KONFIGURASI FIREBASE (UNIVERSAL) ---
+// Bagian ini dimodifikasi agar jalan di GitHub DAN di Preview AI
+let firebaseConfig;
+let appId;
+
+try {
+  // 1. Coba ambil config otomatis (Khusus Preview AI ini)
+  if (typeof __firebase_config !== 'undefined') {
+    firebaseConfig = JSON.parse(__firebase_config);
+    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+  } else {
+    throw new Error("Config not found");
+  }
+} catch (e) {
+  // 2. JIKA DI GITHUB / LOCALHOST:
+  // ANDA HARUS MENGISI DATA INI DENGAN CONFIG DARI CONSOLE FIREBASE ANDA
+  // Buka https://console.firebase.google.com/ -> Project Settings -> General -> Your Apps -> SDK Setup
+  firebaseConfig = {
+    apiKey: "PASTE_API_KEY_ANDA_DISINI",
+    authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+    projectId: "PASTE_PROJECT_ID_ANDA",
+    storageBucket: "PASTE_PROJECT_ID.firebasestorage.app",
+    messagingSenderId: "PASTE_SENDER_ID",
+    appId: "PASTE_APP_ID"
+  };
+  appId = "tpg-app-public"; // Nama bebas untuk ID aplikasi publik
+}
+
+// Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- Helper Functions ---
 const formatCurrency = (value) => {
@@ -131,13 +157,18 @@ export default function App() {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Cek apakah kita di lingkungan Preview AI (punya custom token)
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
+          // Jika di GitHub/Production, gunakan Anonymous login biasa
+          // Pastikan Authentication -> Anonymous diaktifkan di Console Firebase
           await signInAnonymously(auth);
         }
       } catch (error) {
         console.error("Auth error:", error);
+        // Fallback terakhir
+        if (!auth.currentUser) await signInAnonymously(auth);
       }
     };
     initAuth();
@@ -152,6 +183,7 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    // Menggunakan variable appId yang sudah diset di bagian konfigurasi atas
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'));
     
     const unsubscribeData = onSnapshot(q, (snapshot) => {
@@ -164,6 +196,7 @@ export default function App() {
       setLoading(false);
     }, (error) => {
       console.error("Data fetch error:", error);
+      // Jika error permission, kemungkinan config salah atau rule firestore belum di-set public
       setLoading(false);
     });
 
@@ -209,7 +242,10 @@ export default function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user) {
+        alert("Menunggu koneksi database...");
+        return;
+    }
 
     try {
       const payload = {
@@ -240,7 +276,7 @@ export default function App() {
       setEditingId(null); 
     } catch (error) {
       console.error("Error saving:", error);
-      alert('Gagal menyimpan data.');
+      alert('Gagal menyimpan data. Pastikan Config Firebase Benar.');
     }
   };
 
