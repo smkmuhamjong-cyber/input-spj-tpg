@@ -5,38 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi Input SPJ TPG TW 4 - 2025</title>
     
-    <!-- Tailwind CSS (Styling) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         body { font-family: 'Inter', sans-serif; }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        
-        /* Disable interaction when connecting */
         .disabled-btn { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 pb-20 md:pb-0">
 
-    <!-- HEADER -->
-    <header class="bg-gradient-to-r from-blue-800 to-indigo-900 text-white p-4 md:p-6 shadow-md sticky top-0 z-50">
+    <header class="bg-gradient-to-r from-green-700 to-emerald-800 text-white p-4 md:p-6 shadow-md sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div class="flex-1 w-full flex justify-between items-center">
                 <div>
                     <h1 class="text-lg md:text-2xl font-bold uppercase tracking-wide leading-tight">SPJ TPG TW 4 - 2025</h1>
-                    <p class="text-blue-200 text-xs md:text-sm mt-1">Disdikbud Prov. Jateng</p>
+                    <p class="text-green-200 text-xs md:text-sm mt-1">Database Spreadsheet Langsung</p>
                 </div>
-                <!-- Connection Status Badge (Mobile & Desktop) -->
-                <div id="connection-status" class="flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full text-xs border border-yellow-400/50 text-yellow-100 animate-pulse">
+                <div id="connection-status" class="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-xs border border-white/30 text-white animate-pulse cursor-help">
                     <i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> 
-                    <span id="status-text">Menghubungkan...</span>
+                    <span id="status-text">Memuat Data...</span>
                 </div>
             </div>
         </div>
@@ -47,36 +38,29 @@
         <!-- CONTROLS -->
         <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-6 gap-3 bg-white p-3 md:p-4 rounded-lg shadow-sm border border-gray-200">
             <div class="flex w-full md:w-auto space-x-2">
-                <button onclick="switchView('form')" id="btn-view-form" class="flex-1 md:flex-none justify-center px-4 py-2 rounded-md flex items-center gap-2 transition-colors text-sm font-medium bg-blue-600 text-white">
-                    <i data-lucide="plus" class="w-4 h-4"></i> <span id="btn-text-input">Input</span>
+                <button onclick="switchView('form')" id="btn-view-form" class="flex-1 md:flex-none justify-center px-4 py-2 rounded-md flex items-center gap-2 transition-colors text-sm font-medium bg-green-700 text-white">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Input
                 </button>
                 <button onclick="switchView('table')" id="btn-view-table" class="flex-1 md:flex-none justify-center px-4 py-2 rounded-md flex items-center gap-2 transition-colors text-sm font-medium text-gray-600 hover:bg-gray-100 bg-gray-50">
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Data
                 </button>
+                <button onclick="refreshData()" class="px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700" title="Refresh Data">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                </button>
             </div>
 
-            <!-- Desktop Tools -->
             <div class="hidden md:flex flex-wrap gap-2 justify-end">
-                <input type="file" id="csvFileInput" accept=".csv" class="hidden">
-                <button onclick="document.getElementById('csvFileInput').click()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md border border-gray-300 flex items-center gap-2 text-sm">
-                    <i data-lucide="upload" class="w-4 h-4"></i> Import
+                <button onclick="exportCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 text-sm">
+                    <i data-lucide="download" class="w-4 h-4"></i> Download Excel
                 </button>
-                <div id="table-tools" class="hidden flex gap-2">
-                    <button onclick="copyTable()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-md border border-indigo-200 flex items-center gap-2 text-sm">
-                        <i data-lucide="copy" class="w-4 h-4"></i> Salin
-                    </button>
-                    <button onclick="exportCSV()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow flex items-center gap-2 text-sm">
-                        <i data-lucide="download" class="w-4 h-4"></i> Excel
-                    </button>
-                </div>
             </div>
         </div>
 
-        <!-- FORM VIEW (VISIBLE BY DEFAULT) -->
+        <!-- FORM VIEW -->
         <div id="form-view" class="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden fade-in">
             <div id="form-header" class="p-4 md:p-6 border-b bg-gray-50 flex justify-between items-center">
                 <h2 class="text-md md:text-lg font-semibold text-gray-700 flex items-center gap-2">
-                    <span id="form-icon-wrapper"><i data-lucide="plus" class="w-5 h-5 text-blue-600"></i></span>
+                    <span id="form-icon-wrapper"><i data-lucide="plus" class="w-5 h-5 text-green-600"></i></span>
                     <span id="form-title">Formulir Baru</span>
                 </h2>
                 <button id="btn-cancel-edit" onclick="cancelEdit()" class="hidden text-xs md:text-sm text-red-600 hover:underline border border-red-200 px-2 py-1 rounded bg-white">Batal</button>
@@ -124,12 +108,11 @@
 
                 <div class="md:col-span-4 md:col-start-9"><label class="block text-xs md:text-sm font-extrabold text-green-800 mb-1">DITERIMA BERSIH</label><div id="display_diterima_bersih" class="w-full p-3 bg-green-100 border border-green-300 rounded text-right font-mono font-bold text-lg text-green-900">Rp 0</div></div>
 
-                <!-- Submit Button -->
                 <div class="md:col-span-12 mt-6 flex justify-end gap-3 items-center sticky bottom-0 bg-white/95 backdrop-blur p-4 border-t border-gray-100 shadow-lg md:shadow-none md:static md:p-0 md:border-0 md:bg-transparent">
-                    <span id="sync-status" class="hidden text-xs md:text-sm text-blue-600 animate-pulse flex items-center gap-1"><i data-lucide="cloud" class="w-4 h-4"></i> Mengirim...</span>
-                    <button type="submit" id="btn-submit" class="disabled-btn w-full md:w-auto bg-blue-700 hover:bg-blue-800 text-white px-6 md:px-10 py-3 rounded-lg shadow-lg font-bold text-sm md:text-lg flex justify-center items-center gap-2 transition-all">
-                        <span id="btn-icon-wrapper"><i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i></span> 
-                        <span id="btn-submit-text">TUNGGU...</span>
+                    <span id="sync-status" class="hidden text-xs md:text-sm text-green-600 animate-pulse flex items-center gap-1"><i data-lucide="upload-cloud" class="w-4 h-4"></i> Menyimpan...</span>
+                    <button type="submit" id="btn-submit" class="w-full md:w-auto bg-green-700 hover:bg-green-800 text-white px-6 md:px-10 py-3 rounded-lg shadow-lg font-bold text-sm md:text-lg flex justify-center items-center gap-2 transition-all">
+                        <span id="btn-icon-wrapper"><i data-lucide="save" class="w-5 h-5"></i></span> 
+                        <span id="btn-submit-text">SIMPAN KE SPREADSHEET</span>
                     </button>
                 </div>
             </form>
@@ -141,14 +124,12 @@
                 <h3 class="font-bold text-gray-700 flex items-center gap-2 text-sm md:text-base">Database</h3>
                 <div class="relative w-40 md:w-64">
                     <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
-                    <input type="text" id="searchInput" oninput="filterEntries()" placeholder="Cari..." class="w-full pl-8 pr-3 py-1.5 md:py-2 border rounded-full text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                    <input type="text" id="searchInput" oninput="filterEntries()" placeholder="Cari..." class="w-full pl-8 pr-3 py-1.5 md:py-2 border rounded-full text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-green-300">
                 </div>
             </div>
 
-            <!-- Mobile Cards Container -->
             <div id="mobile-cards-container" class="block md:hidden p-3 pb-24 min-h-[50vh]"></div>
 
-            <!-- Desktop Table Container -->
             <div class="hidden md:block flex-1 overflow-auto">
                 <table class="w-full text-sm text-left whitespace-nowrap">
                     <thead class="bg-gray-100 text-gray-600 sticky top-0 z-10 font-bold uppercase text-xs">
@@ -161,7 +142,7 @@
                             <th class="p-3 border-b text-right">Juli</th>
                             <th class="p-3 border-b text-right">Agustus</th>
                             <th class="p-3 border-b text-right">Sept</th>
-                            <th class="p-3 border-b text-right bg-blue-50 font-bold text-blue-800">Jumlah</th>
+                            <th class="p-3 border-b text-right bg-blue-50 text-blue-800">Jumlah</th>
                             <th class="p-3 border-b text-right text-red-600">Nominal Pajak</th>
                             <th class="p-3 border-b text-right text-red-600">BPJS</th>
                             <th class="p-3 border-b text-right bg-green-50 text-green-800 font-bold">Diterima</th>
@@ -172,7 +153,6 @@
                 </table>
             </div>
 
-            <!-- Mobile Sticky Footer -->
             <div class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t shadow-[0_-5px_15px_rgba(0,0,0,0.1)] p-3 z-50">
                 <div class="flex justify-between items-center text-sm">
                     <span class="text-gray-500 font-medium" id="mobile-total-label">Total (0 Data)</span>
@@ -182,201 +162,68 @@
         </div>
     </main>
 
-    <!-- SCRIPTS -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, serverTimestamp, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
+    <script>
         // --- KONFIGURASI ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxsqk55U-qunBx0watHfzTb9D7hzrp8nflPp8BmwgLejRZGsD-60CqhhHpGes4trPUy/exec";
         
-        let firebaseConfig;
-        let appId = 'tpg-app-public';
-
-        try {
-            if (typeof __firebase_config !== 'undefined') {
-                firebaseConfig = JSON.parse(__firebase_config);
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            } else {
-                 throw new Error("Local");
-            }
-        } catch(e) {
-            firebaseConfig = {
-                apiKey: "PASTE_API_KEY_ANDA",
-                authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-                projectId: "PASTE_PROJECT_ID",
-                storageBucket: "PASTE_PROJECT_ID.firebasestorage.app",
-                messagingSenderId: "PASTE_SENDER_ID",
-                appId: "PASTE_APP_ID"
-            };
-        }
-
-        // GLOBAL USER STATE
-        let db, auth, user;
-        let isConnected = false;
-
-        // UI UPDATE FUNCTION FOR CONNECTION STATUS
-        function updateConnectionStatus(connected) {
-            isConnected = connected;
-            const statusBadge = document.getElementById('connection-status');
-            const statusText = document.getElementById('status-text');
-            const submitBtn = document.getElementById('btn-submit');
-            const submitText = document.getElementById('btn-submit-text');
-            const btnIconWrapper = document.getElementById('btn-icon-wrapper');
-
-            if (connected) {
-                // Update Header Badge
-                statusBadge.className = "flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full text-xs border border-green-400/50 text-green-100";
-                statusBadge.innerHTML = `<i data-lucide="wifi" class="w-3 h-3"></i> <span id="status-text">Terhubung</span>`;
-                
-                // Enable Submit Button
-                submitBtn.classList.remove('disabled-btn');
-                submitText.innerText = editingId ? "UPDATE" : "SIMPAN";
-                btnIconWrapper.innerHTML = `<i data-lucide="save" class="w-5 h-5"></i>`;
-            } else {
-                // Reset to connecting state
-                statusBadge.className = "flex items-center gap-2 bg-yellow-500/20 px-3 py-1 rounded-full text-xs border border-yellow-400/50 text-yellow-100 animate-pulse";
-                statusBadge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> <span id="status-text">Menghubungkan...</span>`;
-            }
-            lucide.createIcons();
-        }
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            
-            // AUTHENTICATION LOGIC
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                signInWithCustomToken(auth, __initial_auth_token).catch(err => console.error("Token Auth Failed", err));
-            } else {
-                signInAnonymously(auth).catch(err => {
-                    console.error("Anon Auth Failed", err);
-                    if(firebaseConfig.apiKey === "PASTE_API_KEY_ANDA") {
-                        alert("ERROR: Konfigurasi Firebase belum diisi di file index.html!");
-                    }
-                });
-            }
-
-            onAuthStateChanged(auth, (u) => {
-                user = u;
-                if(user) {
-                    updateConnectionStatus(true);
-                    loadData();
-                } else {
-                    updateConnectionStatus(false);
-                }
-            });
-        } catch(err) {
-            console.error("Firebase Init Error:", err);
-            alert("Gagal memulakan Firebase. Periksa konsol.");
-        }
-
-        // Global State
         let entries = [];
         let editingId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            lucide.createIcons();
+        });
 
         // --- CORE FUNCTIONS ---
 
         function loadData() {
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'));
-            onSnapshot(q, (snapshot) => {
-                const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-                entries = data;
-                renderTable(entries);
-                lucide.createIcons();
-            }, (error) => {
-                console.error("Firestore Snapshot Error:", error);
-            });
+            const statusBadge = document.getElementById('connection-status');
+            const statusText = document.getElementById('status-text');
+            statusBadge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i> Memuat...`;
+            lucide.createIcons();
+
+            fetch(GOOGLE_SCRIPT_URL)
+                .then(response => response.text()) // Get text first to check for errors
+                .then(text => {
+                    // --- PENGENDALIAN RALAT VERSI LAMA ---
+                    if (text.trim().includes("Layanan Webhook")) {
+                        throw new Error("OLD_SCRIPT_VERSION");
+                    }
+                    // --------------------------------------
+
+                    try {
+                        const data = JSON.parse(text);
+                        // Sort by ID/Timestamp if available
+                        entries = data.reverse(); 
+                        renderTable(entries);
+                        
+                        statusBadge.classList.replace('bg-white/20', 'bg-green-500/80');
+                        statusBadge.classList.remove('animate-pulse');
+                        statusBadge.innerHTML = `<i data-lucide="check-circle" class="w-3 h-3"></i> Online`;
+                        lucide.createIcons();
+                    } catch(e) {
+                        console.error("JSON Parse Error:", e);
+                        throw new Error("INVALID_JSON");
+                    }
+                })
+                .catch(error => {
+                    console.error("Data Load Error:", error);
+                    statusBadge.innerHTML = `<i data-lucide="alert-triangle" class="w-3 h-3"></i> Ralat`;
+                    statusBadge.classList.replace('bg-white/20', 'bg-yellow-600/90');
+                    
+                    if (error.message === "OLD_SCRIPT_VERSION") {
+                        alert("PERHATIAN: Google Apps Script anda masih menggunakan versi LAMA.\n\nSila kemaskini kod di Google Apps Script dengan kod baru (tanpa Firebase) dan buat 'New Deployment' (Versi Baru) untuk membolehkan aplikasi ini berfungsi.");
+                        // Render kosong supaya tak stuck loading
+                        renderTable([]);
+                    } else if (error.message === "INVALID_JSON") {
+                        alert("Ralat Data: Server memulangkan format yang tidak dikenali. Sila semak Deployment Google Apps Script anda.");
+                    }
+                    lucide.createIcons();
+                });
         }
 
-        // Render Data
-        window.renderTable = (data) => {
-            const tbody = document.getElementById('table-body');
-            const mobileContainer = document.getElementById('mobile-cards-container');
-            tbody.innerHTML = '';
-            mobileContainer.innerHTML = '';
-
-            let totalDiterima = 0;
-            let totals = { juli:0, agust:0, sept:0, kotor:0, pajak:0, bpjs:0, terima:0 };
-
-            data.forEach((row, index) => {
-                totalDiterima += (row.diterima || 0);
-                totals.juli += (row.gaji_juli || 0);
-                totals.agust += (row.gaji_agustus || 0);
-                totals.sept += (row.gaji_september || 0);
-                totals.kotor += (row.jumlah_kotor || 0);
-                totals.pajak += (row.nominal_pajak || 0);
-                totals.bpjs += (row.bpjs || 0);
-                totals.terima += (row.diterima || 0);
-
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors group";
-                tr.innerHTML = `
-                    <td class="p-3 text-center flex justify-center gap-1">
-                        <button onclick="editItem('${row.id}')" class="text-amber-500 hover:bg-amber-50 p-1 rounded"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                        <button onclick="syncItem('${row.id}')" class="text-green-500 hover:bg-green-50 p-1 rounded"><i data-lucide="share-2" class="w-4 h-4"></i></button>
-                        <button onclick="deleteItem('${row.id}')" class="text-gray-300 hover:text-red-600 hover:bg-red-50 p-1 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </td>
-                    <td class="p-3">${index + 1}</td>
-                    <td class="p-3 font-medium">${row.nama}</td>
-                    <td class="p-3 text-gray-500">${row.nuptk || '-'}</td>
-                    <td class="p-3 text-xs font-mono">${row.no_rekening || '-'}</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_juli)}</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_agustus)}</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_september)}</td>
-                    <td class="p-3 text-right font-bold bg-blue-50 font-mono text-blue-700">${formatCurrency(row.jumlah_kotor)}</td>
-                    <td class="p-3 text-right text-red-600 font-mono">${formatCurrency(row.nominal_pajak)}</td>
-                    <td class="p-3 text-right text-red-600 font-mono">${formatCurrency(row.bpjs)}</td>
-                    <td class="p-3 text-right font-bold text-green-700 bg-green-50 font-mono">${formatCurrency(row.diterima)}</td>
-                `;
-                tbody.appendChild(tr);
-
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-3";
-                card.innerHTML = `
-                     <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <h4 class="font-bold text-gray-800 uppercase text-sm">${row.nama}</h4>
-                            <p class="text-xs text-gray-500 font-mono">${row.nuptk || '-'}</p>
-                        </div>
-                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">${formatCurrency(row.diterima)}</span>
-                    </div>
-                    <div class="flex justify-between items-center pt-2 border-t border-gray-100 mt-2">
-                        <div class="flex gap-2">
-                            <button onclick="editItem('${row.id}')" class="text-amber-600 bg-amber-50 p-1.5 rounded-full"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                             <button onclick="syncItem('${row.id}')" class="text-green-600 bg-green-50 p-1.5 rounded-full"><i data-lucide="share-2" class="w-4 h-4"></i></button>
-                             <button onclick="deleteItem('${row.id}')" class="text-red-600 bg-red-50 p-1.5 rounded-full"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </div>
-                    </div>
-                `;
-                mobileContainer.appendChild(card);
-            });
-
-            document.getElementById('mobile-total-label').innerText = `Total (${data.length} Data)`;
-            document.getElementById('mobile-total-value').innerText = formatCurrency(totals.terima);
-            
-            const tfoot = document.getElementById('table-footer');
-            tfoot.innerHTML = `
-                <tr>
-                    <td colspan="5" class="p-3 text-right uppercase text-gray-600">Grand Total:</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(totals.juli)}</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(totals.agust)}</td>
-                    <td class="p-3 text-right font-mono">${formatCurrency(totals.sept)}</td>
-                    <td class="p-3 text-right font-mono bg-blue-100 text-blue-800">${formatCurrency(totals.kotor)}</td>
-                    <td class="p-3 text-right font-mono text-red-700">${formatCurrency(totals.pajak)}</td>
-                    <td class="p-3 text-right font-mono text-red-700">${formatCurrency(totals.bpjs)}</td>
-                    <td class="p-3 text-right font-mono bg-green-100 text-green-800">${formatCurrency(totals.terima)}</td>
-                </tr>
-            `;
-
-            lucide.createIcons();
-        };
-
         // --- FORM LOGIC ---
-        
         const form = document.getElementById('tpgForm');
         
         window.calculateTotals = () => {
@@ -397,18 +244,11 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Double check just in case button was enabled manually
-            if(!user) {
-                alert("Sedang menyambung ke database... Sila tunggu sebentar.");
-                return;
-            }
-
             const btn = document.getElementById('btn-submit');
             const btnText = document.getElementById('btn-submit-text');
             const btnIconWrapper = document.getElementById('btn-icon-wrapper');
             const status = document.getElementById('sync-status');
             
-            // UI Loading State
             btn.disabled = true;
             btn.classList.add('opacity-75');
             btnText.innerText = "MENYIMPAN...";
@@ -419,61 +259,152 @@
             const fd = new FormData(form);
             const data = Object.fromEntries(fd.entries());
             
-            ['gaji_juli', 'gaji_agustus', 'gaji_september', 'nominal_pajak', 'bpjs'].forEach(k => data[k] = parseFloat(data[k]) || 0);
+            // Calculations
+            data.gaji_juli = parseFloat(data.gaji_juli) || 0;
+            data.gaji_agustus = parseFloat(data.gaji_agustus) || 0;
+            data.gaji_september = parseFloat(data.gaji_september) || 0;
+            data.nominal_pajak = parseFloat(data.nominal_pajak) || 0;
+            data.bpjs = parseFloat(data.bpjs) || 0;
             
             data.jumlah_kotor = data.gaji_juli + data.gaji_agustus + data.gaji_september;
             data.diterima = data.jumlah_kotor - data.nominal_pajak - data.bpjs;
-            data.updatedBy = user.uid;
-            data.updatedAt = serverTimestamp();
 
-            try {
-                if(editingId) {
-                    await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025', editingId), data);
-                    alert("Data berhasil diupdate!");
+            // Payload
+            const payload = {
+                ...data,
+                id: editingId, 
+                action: editingId ? "UPDATE" : "INSERT"
+            };
+
+            // POST to Google Script
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if(result.result === "success") {
+                    alert("Data Berhasil Disimpan!");
+                    form.reset();
+                    cancelEdit();
+                    loadData(); 
                 } else {
-                    data.createdAt = serverTimestamp();
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025'), data);
-                    alert("Data berhasil disimpan!");
+                    alert("Gagal: " + JSON.stringify(result));
                 }
-
-                const sheetData = { ...data, action: editingId ? "UPDATE" : "INSERT", timestamp: new Date().toISOString() };
-                fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(sheetData) });
-
+            })
+            .catch(error => {
+                console.warn("CORS/Network Warning", error);
+                // Assuming success for no-cors scenarios if logic is correct
+                alert("Data dihantar! (Semak Spreadsheet)");
                 form.reset();
                 cancelEdit();
-                window.calculateTotals(); 
-
-            } catch(err) {
-                alert("Gagal menyimpan: " + err.message);
-            } finally {
-                // Reset Button State
+                setTimeout(loadData, 2000);
+            })
+            .finally(() => {
                 btn.disabled = false;
                 btn.classList.remove('opacity-75');
-                btnText.innerText = "SIMPAN";
+                btnText.innerText = "SIMPAN KE SPREADSHEET";
                 btnIconWrapper.innerHTML = `<i data-lucide="save" class="w-5 h-5"></i>`;
                 status.classList.add('hidden');
                 lucide.createIcons();
-            }
+            });
         });
 
-        // --- ACTIONS ---
+        // --- RENDER & UTILS ---
+
+        window.renderTable = (data) => {
+            const tbody = document.getElementById('table-body');
+            const mobileContainer = document.getElementById('mobile-cards-container');
+            tbody.innerHTML = '';
+            mobileContainer.innerHTML = '';
+
+            let totals = { juli:0, agust:0, sept:0, kotor:0, pajak:0, bpjs:0, terima:0 };
+
+            data.forEach((row, index) => {
+                totals.juli += (parseFloat(row.gaji_juli) || 0);
+                totals.agust += (parseFloat(row.gaji_agustus) || 0);
+                totals.sept += (parseFloat(row.gaji_september) || 0);
+                totals.kotor += (parseFloat(row.jumlah_kotor) || 0);
+                totals.pajak += (parseFloat(row.nominal_pajak) || 0);
+                totals.bpjs += (parseFloat(row.bpjs) || 0);
+                totals.terima += (parseFloat(row.diterima) || 0);
+
+                // Desktop Row
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition-colors group";
+                tr.innerHTML = `
+                    <td class="p-3 text-center flex justify-center gap-1">
+                        <button onclick="editItem('${row.id}')" class="text-amber-500 hover:bg-amber-50 p-1 rounded"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                        <button onclick="deleteItem('${row.id}')" class="text-gray-300 hover:text-red-600 hover:bg-red-50 p-1 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                    <td class="p-3">${index + 1}</td>
+                    <td class="p-3 font-medium">${row.nama}</td>
+                    <td class="p-3 text-gray-500">${row.nuptk || '-'}</td>
+                    <td class="p-3 text-xs font-mono">${row.no_rekening || '-'}</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_juli)}</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_agustus)}</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(row.gaji_september)}</td>
+                    <td class="p-3 text-right font-bold bg-blue-50 font-mono text-blue-700">${formatCurrency(row.jumlah_kotor)}</td>
+                    <td class="p-3 text-right text-red-600 font-mono">${formatCurrency(row.nominal_pajak)}</td>
+                    <td class="p-3 text-right text-red-600 font-mono">${formatCurrency(row.bpjs)}</td>
+                    <td class="p-3 text-right font-bold text-green-700 bg-green-50 font-mono">${formatCurrency(row.diterima)}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-3";
+                card.innerHTML = `
+                     <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h4 class="font-bold text-gray-800 uppercase text-sm">${row.nama}</h4>
+                            <p class="text-xs text-gray-500 font-mono">${row.nuptk || '-'}</p>
+                        </div>
+                        <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">${formatCurrency(row.diterima)}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-100 mt-2">
+                        <div class="flex gap-2">
+                            <button onclick="editItem('${row.id}')" class="text-amber-600 bg-amber-50 p-1.5 rounded-full"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                             <button onclick="deleteItem('${row.id}')" class="text-red-600 bg-red-50 p-1.5 rounded-full"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                `;
+                mobileContainer.appendChild(card);
+            });
+
+            // Footer
+            document.getElementById('mobile-total-label').innerText = `Total (${data.length} Data)`;
+            document.getElementById('mobile-total-value').innerText = formatCurrency(totals.terima);
+            
+            const tfoot = document.getElementById('table-footer');
+            tfoot.innerHTML = `
+                <tr>
+                    <td colspan="5" class="p-3 text-right uppercase text-gray-600">Grand Total:</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(totals.juli)}</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(totals.agust)}</td>
+                    <td class="p-3 text-right font-mono">${formatCurrency(totals.sept)}</td>
+                    <td class="p-3 text-right font-mono bg-blue-100 text-blue-800">${formatCurrency(totals.kotor)}</td>
+                    <td class="p-3 text-right font-mono text-red-700">${formatCurrency(totals.pajak)}</td>
+                    <td class="p-3 text-right font-mono text-red-700">${formatCurrency(totals.bpjs)}</td>
+                    <td class="p-3 text-right font-mono bg-green-100 text-green-800">${formatCurrency(totals.terima)}</td>
+                </tr>
+            `;
+            lucide.createIcons();
+        };
 
         window.editItem = (id) => {
             const item = entries.find(e => e.id === id);
             if(!item) return;
-
             editingId = id;
             for (const key in item) {
                 if(form.elements[key]) form.elements[key].value = item[key];
             }
-            
             document.getElementById('form-title').innerText = "Edit Data";
-            document.getElementById('btn-submit-text').innerText = "UPDATE";
-            document.getElementById('btn-submit').classList.replace('bg-blue-700', 'bg-amber-500');
+            document.getElementById('btn-submit-text').innerText = "UPDATE SPREADSHEET";
+            document.getElementById('btn-submit').classList.replace('bg-green-700', 'bg-amber-600');
             document.getElementById('form-header').classList.replace('bg-gray-50', 'bg-amber-50');
             document.getElementById('form-icon-wrapper').innerHTML = `<i data-lucide="edit" class="w-5 h-5 text-amber-600"></i>`;
             document.getElementById('btn-cancel-edit').classList.remove('hidden');
-            
             window.calculateTotals();
             switchView('form');
             window.scrollTo({top:0, behavior:'smooth'});
@@ -484,27 +415,32 @@
             editingId = null;
             form.reset();
             document.getElementById('form-title').innerText = "Formulir Baru";
-            document.getElementById('btn-submit-text').innerText = "SIMPAN";
-            document.getElementById('btn-submit').classList.replace('bg-amber-500', 'bg-blue-700');
+            document.getElementById('btn-submit-text').innerText = "SIMPAN KE SPREADSHEET";
+            document.getElementById('btn-submit').classList.replace('bg-amber-600', 'bg-green-700');
             document.getElementById('form-header').classList.replace('bg-amber-50', 'bg-gray-50');
-            document.getElementById('form-icon-wrapper').innerHTML = `<i data-lucide="plus" class="w-5 h-5 text-blue-600"></i>`;
+            document.getElementById('form-icon-wrapper').innerHTML = `<i data-lucide="plus" class="w-5 h-5 text-green-600"></i>`;
             document.getElementById('btn-cancel-edit').classList.add('hidden');
             window.calculateTotals();
             lucide.createIcons();
         };
 
-        window.deleteItem = async (id) => {
-            if(confirm("Yakin hapus data ini?")) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tpg_entries_2025', id));
-            }
+        window.deleteItem = (id) => {
+            if(!confirm("Yakin hapus data ini dari Spreadsheet?")) return;
+            
+            entries = entries.filter(e => e.id !== id);
+            renderTable(entries);
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: "DELETE", id: id })
+            }).then(() => {
+                console.log("Deleted");
+                setTimeout(loadData, 1000); 
+            });
         };
 
-        window.syncItem = (id) => {
-            const item = entries.find(e => e.id === id);
-            if(confirm("Kirim ulang data ini ke Google Spreadsheet?")) {
-                 const sheetData = { ...item, action: "MANUAL_SYNC", timestamp: new Date().toISOString() };
-                 fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(sheetData) });
-            }
+        window.refreshData = () => {
+            loadData();
         };
 
         window.switchView = (viewName) => {
@@ -512,24 +448,21 @@
             const tableView = document.getElementById('table-view');
             const btnForm = document.getElementById('btn-view-form');
             const btnTable = document.getElementById('btn-view-table');
-            const tools = document.getElementById('table-tools');
 
             if(viewName === 'form') {
                 formView.classList.remove('hidden');
                 tableView.classList.add('hidden');
-                btnForm.classList.replace('bg-gray-50', 'bg-blue-600');
+                btnForm.classList.replace('bg-gray-50', 'bg-green-700');
                 btnForm.classList.replace('text-gray-600', 'text-white');
-                btnTable.classList.replace('bg-blue-600', 'bg-gray-50');
+                btnTable.classList.replace('bg-green-700', 'bg-gray-50');
                 btnTable.classList.replace('text-white', 'text-gray-600');
-                tools.classList.add('hidden');
             } else {
                 formView.classList.add('hidden');
                 tableView.classList.remove('hidden');
-                btnForm.classList.replace('bg-blue-600', 'bg-gray-50');
+                btnForm.classList.replace('bg-green-700', 'bg-gray-50');
                 btnForm.classList.replace('text-white', 'text-gray-600');
-                btnTable.classList.replace('bg-gray-50', 'bg-blue-600');
+                btnTable.classList.replace('bg-gray-50', 'bg-green-700');
                 btnTable.classList.replace('text-gray-600', 'text-white');
-                tools.classList.remove('hidden');
             }
         };
 
@@ -543,19 +476,20 @@
         };
 
         window.formatCurrency = (val) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
-
-        document.getElementById('csvFileInput').addEventListener('change', function(e) {
-             const file = e.target.files[0];
-             if(!file) return;
-             const reader = new FileReader();
-             reader.onload = async function(e) {
-                 const text = e.target.result;
-                 alert("Fitur import akan memproses file CSV: " + file.name + "\n(Logic parsing ada di dalam code)");
-             };
-             reader.readAsText(file);
-        });
-
-        lucide.createIcons();
+        
+        window.exportCSV = () => {
+            if(entries.length === 0) return alert("Tidak ada data");
+            let csv = "NAMA,NUPTK,JUMLAH,DITERIMA\n";
+            entries.forEach(row => {
+                csv += `"${row.nama}","'${row.nuptk}",${row.jumlah_kotor},${row.diterima}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Data_TPG.csv";
+            a.click();
+        };
     </script>
 </body>
 </html>
